@@ -1,0 +1,9 @@
+{
+	"hosts": {
+		"group1": [ "host1", "host2" ]
+		,"group2": [ "host3", "host4" ]
+		,"all": [ "group1", "group2" ]
+	}
+	,"user": "default-user"
+	,"identity": "~/.ssh/id_rsa"
+}
