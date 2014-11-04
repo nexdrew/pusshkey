@@ -58,17 +58,23 @@ var executeConfig = function(config) {
 	};
 
 	//-- expand hosts for any aliases
-	var hosts = [], index = '', i;
+	var hosts = [], hostIndex = '', aliasIndex = '', i;
 	var expand = function(host) {
+		i = '<'+host+'>';
 		if(json && json.hosts && json.hosts[host]) {
-			// console.log(host+' is alias, expanding');
-			json.hosts[host].forEach(expand);
+			if(aliasIndex.indexOf(i) == -1) {
+				// console.log(host+' is alias, expanding');
+				aliasIndex += i;
+				json.hosts[host].forEach(expand);
+			}
+			// else console.log(host+' is alias, already expanded');
 		} else {
-			i = '<'+host+'>';
-			if(index.indexOf(i) == -1) {
-				index += i;
+			if(hostIndex.indexOf(i) == -1) {
+				// console.log('adding '+host);
+				hostIndex += i;
 				hosts.push(host);
 			}
+			// else console.log(host+' already added');
 		}
 	};
 	(config.hosts || []).forEach(expand);
