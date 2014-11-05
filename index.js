@@ -13,7 +13,7 @@ var addSSHPubKey = function(host, pubkey, cb, user, identity) {
 	var rcmd = 'grep "' + escapedPubkey + '" .ssh/authorized_keys || echo "' + escapedPubkey + '" >> .ssh/authorized_keys';
 	var args = ['-o', 'StrictHostKeyChecking no', destination, rcmd];
 	if(identity) args.unshift('-i', identity);
-	console.log('adding key to '+host);
+	// console.log('adding key to '+host);
 	child_process.execFile(ssh, args, cb);
 };
 
@@ -26,7 +26,7 @@ var removeSSHPubKey = function(host, pubkey, cb, user, identity) {
 	var rcmd = 'sed -i "/' + escapedPubkey + '/d" .ssh/authorized_keys';
 	var args = ['-o', 'StrictHostKeyChecking no', destination, rcmd];
 	if(identity) args.unshift('-i', identity);
-	console.log('removing key from '+host);
+	// console.log('removing key from '+host);
 	child_process.execFile(ssh, args, cb);
 };
 //==================================================================================
@@ -47,15 +47,35 @@ var defaultIdentity = function() {
 	return (json && json.identity) || '';
 };
 
+var supportedCommands = {
+	add: {
+		fx: addSSHPubKey
+		,successMsg: "Successfully added key to host '%s'"
+		,failureMsg: "Failed to add key to host '%s'"
+	}
+	,rm: {
+		fx: removeSSHPubKey
+		,successMsg: "Successfully removed key from host '%s'"
+		,failureMsg: "Failed to remove key from host '%s'"
+	}
+};
+
 var executeConfig = function(config) {
 	//TODO: validate args!
-	var fx = config.command === 'rm' ? removeSSHPubKey : addSSHPubKey;
-	var pubkey = (fs.existsSync(config.key) ? fs.readFileSync(config.key, { encoding: "utf8" }) : config.key).replace(/(?:\r\n|\r|\n)/g, '');
-	var cb = function(error, stdout, stderr) {
-		//TODO: make this better!
-		if(error) console.log("ERROR!\n"+error);
-		else console.log("success!");
-	};
+	var cmdObj = supportedCommands[config.command];
+	if(!cmdObj) {
+		//throw new Error('Invalid command: '+config.command);
+		if(config.callback) config.callback(false, 'Invalid command: '+config.command, null);
+		return false;
+	}
+
+	var pubkey = fs.existsSync(config.key) ? fs.readFileSync(config.key, { encoding: "utf8" }) : config.key;
+	if(!pubkey || pubkey.length < 200 || pubkey.lastIndexOf('ssh-', 0) !== 0) {
+		//throw new Error('Invalid public key: '+pubkey);
+		if(config.callback) config.callback(false, 'Invalid public key: '+config.key, null);
+		return false;
+	}
+	else pubkey = pubkey.replace(/(?:\r\n|\r|\n)/g, '');
 
 	//-- expand hosts for any aliases
 	var hosts = [], hostIndex = '', aliasIndex = '', i;
@@ -77,33 +97,59 @@ var executeConfig = function(config) {
 			// else console.log(host+' already added');
 		}
 	};
-	(config.hosts || []).forEach(expand);
+	var configHosts = typeof config.hosts === 'string' ? [config.hosts] : config.hosts;
+	(configHosts || []).forEach(expand);
 
+	if(hosts.length < 1) {
+		if(config.callback) config.callback(false, 'No hosts defined', null);
+		return false;
+	}
+
+	var totalHosts = hosts.length;
+	var details = { hostData: {}, errorHosts: [], successHosts: [] }, overallSuccess = true;
 	hosts.forEach(function perHost(host) {
 		// console.log('flattened host: '+host);
-		fx(host, pubkey, cb, config.user || defaultUser(), config.identity || defaultIdentity());
+		var sshCallback = function(error, stdout, stderr) {
+			details.hostData[host] = { error: error, stdout: stdout, stderr: stderr };
+			if(error) {
+				details.errorHosts.push(host);
+				overallSuccess = false;
+				console.log(cmdObj.failureMsg, host);
+				console.log(error);
+			} else {
+				details.successHosts.push(host);
+				console.log(cmdObj.successMsg, host);
+			}
+			//-- is this race condition?
+			if((details.errorHosts.length + details.successHosts.length) === totalHosts && config.callback) {
+				config.callback(overallSuccess, overallSuccess ? util.format('%d hosts successful', totalHosts) : util.format('%d/%d hosts with errors', details.errorHosts.length, totalHosts), details);
+			}
+		};
+		cmdObj.fx(host, pubkey, sshCallback, config.user || defaultUser(), config.identity || defaultIdentity());
 	});
+	return true;
 };
 
-var execute = function(command, key, hosts, opts) {
-	if(command && command.command && command.key && command.hosts) executeConfig(command);
-	else {
-		var config = opts || {};
-		config.command = command || config.command;
-		config.key = key || config.key;
-		config.hosts = hosts || config.hosts;
-		executeConfig(config);
-	}
+var execute = function(command, key, hosts, opts, cb) {
+	var config = command && command.command && command.key && command.hosts ? command : (typeof opts !== 'function' ? (opts || {}) : (cb || {}));
+	
+	if(typeof opts === 'function') config.callback = opts;
+	else if(typeof cb === 'function') config.callback = cb;
+
+	config.key = key || config.key;
+	config.hosts = hosts || config.hosts;
+
+	if(typeof command === 'string') config.command = command;
+
+	return executeConfig(config);
 };
 
-var add = function(key, hosts, opts) {
-	//TODO: check first arg
-	execute('add', key, hosts, opts);
+var add = function(key, hosts, opts, cb) {
+	return execute('add', key, hosts, opts, cb);
 };
 
-var rm = function(key, hosts, opts) {
-	//TODO: check first arg
-	execute('rm', key, hosts, opts);
+var rm = function(key, hosts, opts, cb) {
+	return execute('rm', key, hosts, opts, cb);
 };
 
 exports.JSON_FILE_NAME = JSON_FILE_NAME;
