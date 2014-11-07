@@ -65,14 +65,18 @@ var executeConfig = function(config) {
 	var cmdObj = supportedCommands[config.command];
 	if(!cmdObj) {
 		//throw new Error('Invalid command: '+config.command);
-		if(config.callback) config.callback(false, 'Invalid command: '+config.command, null);
+		var msg = 'Invalid command: '+config.command;
+		if(config.callback) config.callback(false, msg, null);
+		else console.log(msg);
 		return false;
 	}
 
 	var pubkey = fs.existsSync(config.key) ? fs.readFileSync(config.key, { encoding: "utf8" }) : config.key;
 	if(!pubkey || pubkey.length < 200 || pubkey.lastIndexOf('ssh-', 0) !== 0) {
 		//throw new Error('Invalid public key: '+pubkey);
-		if(config.callback) config.callback(false, 'Invalid public key: '+config.key, null);
+		var msg = 'Invalid public key: '+config.key;
+		if(config.callback) config.callback(false, msg, null);
+		else console.log(msg);
 		return false;
 	}
 	else pubkey = pubkey.replace(/(?:\r\n|\r|\n)/g, '');
@@ -101,7 +105,9 @@ var executeConfig = function(config) {
 	(configHosts || []).forEach(expand);
 
 	if(hosts.length < 1) {
-		if(config.callback) config.callback(false, 'No hosts defined', null);
+		var msg = 'No hosts defined';
+		if(config.callback) config.callback(false, msg, null);
+		else console.log(msg);
 		return false;
 	}
 
@@ -114,11 +120,13 @@ var executeConfig = function(config) {
 			if(error) {
 				details.errorHosts.push(host);
 				overallSuccess = false;
-				console.log(cmdObj.failureMsg, host);
-				console.log(error);
+				if(!config.callback) {
+					console.log(cmdObj.failureMsg, host);
+					console.log(error);
+				}
 			} else {
 				details.successHosts.push(host);
-				console.log(cmdObj.successMsg, host);
+				if(!config.callback) console.log(cmdObj.successMsg, host);
 			}
 			//-- is this race condition?
 			if((details.errorHosts.length + details.successHosts.length) === totalHosts && config.callback) {

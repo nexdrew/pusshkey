@@ -78,4 +78,7 @@ commander.parse(process.argv);
 
 if(!config.command) commander.help();
 
-if(config.execute) pusshkey.execute(config);
+if(config.execute) {
+	var successfullyQueued = pusshkey.execute(config);
+	if(!successfullyQueued) process.exit(1);
+}

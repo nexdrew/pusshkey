@@ -1,6 +1,6 @@
 {
   "name": "pusshkey",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Push/remove public SSH keys to/from remote hosts",
   "main": "index.js",
   "bin": {
