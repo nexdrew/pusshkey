@@ -10,7 +10,8 @@ var addSSHPubKey = function(host, pubkey, cb, user, identity) {
 	// Add the key if it is not already in the file
 	var escapedPubkey = pubkey.replace(/(["'`\$\!\*\?\\\(\)\[\]\{\}])/g, '\\$1');
 	var destination = user+'@'+host;
-	var rcmd = 'grep "' + escapedPubkey + '" .ssh/authorized_keys || echo "' + escapedPubkey + '" >> .ssh/authorized_keys';
+	var appendKeyCmd = 'echo "'+escapedPubkey+'" >> .ssh/authorized_keys';
+	var rcmd = 'if [ -d .ssh ] && [ -f .ssh/authorized_keys ]; then grep "'+escapedPubkey+'" .ssh/authorized_keys || '+appendKeyCmd+'; else mkdir -m 755 .ssh && install -b -m 644 /dev/null .ssh/authorized_keys && '+appendKeyCmd+'; fi';
 	var args = ['-o', 'StrictHostKeyChecking no', destination, rcmd];
 	if(identity) args.unshift('-i', identity);
 	// console.log('adding key to '+host);
