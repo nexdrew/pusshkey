@@ -11,7 +11,7 @@ var addSSHPubKey = function(host, pubkey, cb, user, identity) {
 	var escapedPubkey = pubkey.replace(/(["'`\$\!\*\?\\\(\)\[\]\{\}])/g, '\\$1');
 	var destination = user+'@'+host;
 	var appendKeyCmd = 'echo "'+escapedPubkey+'" >> .ssh/authorized_keys';
-	var rcmd = 'if [ -d .ssh ] && [ -f .ssh/authorized_keys ]; then grep "'+escapedPubkey+'" .ssh/authorized_keys || '+appendKeyCmd+'; else mkdir -m 755 .ssh && install -b -m 644 /dev/null .ssh/authorized_keys && '+appendKeyCmd+'; fi';
+	var rcmd = 'if [ -d .ssh ] && [ -f .ssh/authorized_keys ]; then grep "'+escapedPubkey+'" .ssh/authorized_keys || '+appendKeyCmd+'; else mkdir -p .ssh && chmod 755 .ssh && install -b -m 644 /dev/null .ssh/authorized_keys && '+appendKeyCmd+'; fi';
 	var args = ['-o', 'StrictHostKeyChecking no', destination, rcmd];
 	if(identity) args.unshift('-i', identity);
 	// console.log('adding key to '+host);
@@ -24,7 +24,7 @@ var removeSSHPubKey = function(host, pubkey, cb, user, identity) {
 	// (nb NOT the + sign)
 	var escapedPubkey = pubkey.replace(/(["'`\$\!\*\?\\\/\(\)\[\]\{\}])/g, '\\$1');
 	var destination = user+'@'+host;
-	var rcmd = 'sed -i "/' + escapedPubkey + '/d" .ssh/authorized_keys';
+	var rcmd = 'if [ -d .ssh ] && [ -f .ssh/authorized_keys ]; then sed -i "/' + escapedPubkey + '/d" .ssh/authorized_keys; fi';
 	var args = ['-o', 'StrictHostKeyChecking no', destination, rcmd];
 	if(identity) args.unshift('-i', identity);
 	// console.log('removing key from '+host);
