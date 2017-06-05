@@ -1,5 +1,7 @@
 # pusshkey
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/nexdrew/pusshkey.svg)](https://greenkeeper.io/)
+
 Basic CLI (and Node module) to _push SSH keys_ to remote hosts. Add or remove a public key from several hosts in one shot.
 
 Here's the scenario: You already have public key authentication to a set of remote hosts (on-premise VMs or AWS EC2 instances) and now you need to give _someone else_ access. Full-blown configuration management might be overkill - you just need to propagate someone else's key. Ok, you can either [write up a simple bash script](http://chriscase.cc/2012/09/appending-to-a-remote-file-via-ssh/) or... do it manually? Yuck. Then what do you do when someone leaves the company/project and you now need to _remove_ that person's key?
